@@ -1,108 +1,71 @@
-import React from 'react';
-import { nanoid } from 'nanoid';
-import { HeadTitle } from './PhoneBook.styled';
-import { ContactList } from './ContactList';
-import { Filter } from './Filter';
-import { ContactForm } from './ContactForm';
-import PropTypes from 'prop-types';
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { ContactForm } from './ContactForm/ContactForm';
+import { ContactList } from './ContactList/ContactList';
+import { Filter } from './Filter/Filter';
 
-export function App() {
-  const [contacts, setContacts] = useState([]);
+const LS_KEY = 'contacts';
+
+export const App = () => {
+  const [contacts, setContacts] = useState([
+    {id: 'id-1', name: 'Rosie Simpson', number: '459-12-56'},
+    {id: 'id-2', name: 'Hermione Kline', number: '443-89-12'},
+    {id: 'id-3', name: 'Eden Clements', number: '645-17-79'},
+    {id: 'id-4', name: 'Annie Copeland', number: '227-91-26'},
+  ]);
   const [filter, setFilter] = useState('');
-  const [name] = useState('');
-  const [number] = useState('');
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    const contactsLocalStorage = JSON.parse(localStorage.getItem('contacts'));
+    const lsContacts = localStorage.getItem(LS_KEY);
 
-    if (contactsLocalStorage) {
-      setContacts(contactsLocalStorage);
+    if (lsContacts) {
+      setContacts(JSON.parse(lsContacts));
     }
   }, []);
 
-  const handleSubmit = (e, { resetForm }) => {
-    setContacts(prevState => {
-      if (
-        prevState.find(el =>
-          el.name.toLowerCase().includes(e.name.toLowerCase())
-        )
-      ) {
-        alert(`${e.name} is already in contacts.`);
-        return prevState;
-      } else {
-        const newStateContacts = [...prevState];
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
 
-        newStateContacts.push({ id: nanoid(), name: e.name, number: e.number });
+    localStorage.setItem(LS_KEY, JSON.stringify(contacts));
+  }, [contacts]);
 
-        localStorage.setItem('contacts', JSON.stringify(newStateContacts));
-
-        resetForm();
-
-        return newStateContacts;
-      }
-    });
+  const formSubmitHandler = contact => {
+    const onList = contacts.find(({ name }) => contact.name === name);
+    if (onList) {
+      alert('This contact is already added');
+      return;
+    }
+    setContacts(prevContacts => [contact, ...prevContacts]);
+    setFilter('');
   };
 
-  const handleFilter = e => {
-    setFilter(e);
-  };
-
-  const getVisibleContacts = () => {
-    const filterToLowerCase = filter.toLowerCase();
-
-    return contacts.filter(el =>
-      el.name.toLowerCase().includes(filterToLowerCase)
+  const onDeleteContact = contactId => {
+    setContacts(prevContacts =>
+      prevContacts.filter(contact => contact.id !== contactId)
     );
   };
 
-  const deleteContact = e => {
-    const newContacts = contacts.filter(el => el.id !== e);
-    setContacts([...newContacts]);
 
-    localStorage.setItem('contacts', JSON.stringify(newContacts));
-  };
+  const getFilteredContacts = () => {
+    const normalizedFilter = filter.toLocaleLowerCase();
+    return contacts.filter(contact => contact.name.toLocaleLowerCase().includes(normalizedFilter));
+  }
 
-  const visibleContacts = getVisibleContacts();
+  const filteredContacts = getFilteredContacts()
 
   return (
-    <>
-      <HeadTitle>Phonebook</HeadTitle>
-
-      <ContactForm
-        initialValues={{ contacts, filter, name, number }}
-        onSubmit={handleSubmit}
-      />
-
-      <HeadTitle>Contacts</HeadTitle>
-
-      <Filter
-        contacts={contacts}
-        filterState={filter}
-        handleFilter={handleFilter}
-      />
-
+    <div>
+      <h1>Phonebook</h1>
+      <ContactForm onSubmit={formSubmitHandler} />
+      <h2>Contacts</h2>
+      <Filter filter={filter} changeFilter={setFilter} />
       <ContactList
-        filteredArr={visibleContacts}
-        deleteContact={deleteContact}
+        contacts={filteredContacts}
+        onDeleteContact={onDeleteContact}
       />
-    </>
+    </div>
   );
-}
-
-ContactForm.propTypes = {
-  initialValues: PropTypes.object,
-  onSubmit: PropTypes.func,
-};
-
-Filter.propTypes = {
-  contacts: PropTypes.array,
-  filterState: PropTypes.string,
-  handleFilter: PropTypes.func,
-};
-
-ContactList.propTypes = {
-  filteredArr: PropTypes.array,
-  deleteContact: PropTypes.func,
 };
